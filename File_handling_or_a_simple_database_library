@@ -1,0 +1,141 @@
+import os
+import json
+from datetime import datetime
+import argparse
+
+# Define the task data structure
+class Task:
+    def __init__(self, title, priority, due_date=None, completed=False):
+        self.title = title
+        self.priority = priority
+        self.due_date = due_date
+        self.completed = completed
+
+# Define the To-Do list class
+class ToDoList:
+    def __init__(self):
+        self.tasks = []
+
+    def add_task(self, task):
+        self.tasks.append(task)
+
+    def remove_task(self, task_title):
+        for task in self.tasks:
+            if task.title == task_title:
+                self.tasks.remove(task)
+                return True
+        return False
+
+    def mark_task_completed(self, task_title):
+        for task in self.tasks:
+            if task.title == task_title:
+                task.completed = True
+                return True
+        return False
+
+    def edit_task(self, task_title, new_title, new_priority, new_due_date):
+        for task in self.tasks:
+            if task.title == task_title:
+                task.title = new_title
+                task.priority = new_priority
+                task.due_date = new_due_date
+                return True
+        return False
+
+    def list_tasks(self):
+        for task in self.tasks:
+            status = "Completed" if task.completed else "Not Completed"
+            due_date = task.due_date.strftime('%Y-%m-%d') if task.due_date else "N/A"
+            print(f"Title: {task.title}\nPriority: {task.priority}\nDue Date: {due_date}\nStatus: {status}\n")
+
+    def save_to_file(self, filename):
+        with open(filename, 'w') as f:
+            tasks_data = []
+            for task in self.tasks:
+                tasks_data.append({
+                    'title': task.title,
+                    'priority': task.priority,
+                    'due_date': task.due_date.strftime('%Y-%m-%d') if task.due_date else None,
+                    'completed': task.completed
+                })
+            json.dump(tasks_data, f)
+
+    def load_from_file(self, filename):
+        if os.path.exists(filename):
+            with open(filename, 'r') as f:
+                tasks_data = json.load(f)
+                for task_data in tasks_data:
+                    due_date = datetime.strptime(task_data['due_date'], '%Y-%m-%d') if task_data['due_date'] else None
+                    task = Task(
+                        title=task_data['title'],
+                        priority=task_data['priority'],
+                        due_date=due_date,
+                        completed=task_data['completed']
+                    )
+                    self.add_task(task)
+
+def main():
+    parser = argparse.ArgumentParser(description="Command-line To-Do List Application")
+    parser.add_argument("--datafile", default="todo.json", help="Specify the data file to use")
+    args = parser.parse_args()
+
+    todo_list = ToDoList()
+
+    # Load tasks from file (if the file exists)
+    todo_list.load_from_file(args.datafile)
+
+    while True:
+        print("\nCommand Menu:")
+        print("1. Add Task")
+        print("2. Remove Task")
+        print("3. Mark Task as Completed")
+        print("4. Edit Task")
+        print("5. List Tasks")
+        print("6. Save and Quit")
+
+        choice = input("Enter your choice (1/2/3/4/5/6): ")
+
+        if choice == "1":
+            title = input("Enter task title: ")
+            priority = input("Enter task priority (high/medium/low): ")
+            due_date_str = input("Enter due date (YYYY-MM-DD, leave blank for none): ")
+            due_date = datetime.strptime(due_date_str, '%Y-%m-%d') if due_date_str else None
+
+            task = Task(title, priority, due_date)
+            todo_list.add_task(task)
+
+        elif choice == "2":
+            task_title = input("Enter the title of the task to remove: ")
+            if not todo_list.remove_task(task_title):
+                print("Task not found!")
+
+        elif choice == "3":
+            task_title = input("Enter the title of the task to mark as completed: ")
+            if not todo_list.mark_task_completed(task_title):
+                print("Task not found!")
+
+        elif choice == "4":
+            task_title = input("Enter the title of the task to edit: ")
+            new_title = input("Enter new title (leave blank to keep current): ")
+            new_priority = input("Enter new priority (leave blank to keep current): ")
+            new_due_date_str = input("Enter new due date (YYYY-MM-DD, leave blank to keep current): ")
+            new_due_date = datetime.strptime(new_due_date_str, '%Y-%m-%d') if new_due_date_str else None
+
+            if not todo_list.edit_task(task_title, new_title, new_priority, new_due_date):
+                print("Task not found!")
+
+        elif choice == "5":
+            print("\n--- To-Do List ---")
+            todo_list.list_tasks()
+
+        elif choice == "6":
+            todo_list.save_to_file(args.datafile)
+            print("To-Do list saved. Goodbye!")
+            break
+
+        else:
+            print("Invalid choice. Please try again.")
+
+if __name__ == "__main__":
+    main()
+
