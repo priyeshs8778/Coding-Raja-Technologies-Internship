@@ -1,0 +1,58 @@
+import nltk
+import tensorflow as tf
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.stem import SnowballStemmer
+from tensorflow import keras
+
+# Sample dataset of conversations
+conversations = [
+    {"user": "Hi there", "bot": "Hello! How can I assist you today?"},
+    {"user": "What's the weather like?", "bot": "I can help you with that. Please provide your location."},
+    # Add more conversations here
+]
+
+# Text preprocessing
+stemmer = SnowballStemmer("english")
+stop_words = set(stopwords.words("english"))
+
+def preprocess_text(text):
+    tokens = word_tokenize(text)
+    tokens = [stemmer.stem(token) for token in tokens]
+    tokens = [word for word in tokens if word not in stop_words]
+    return " ".join(tokens)
+
+# Intent recognition model
+intents = ["greeting", "weather", "other"]
+
+# Create training data for intent recognition
+training_data = []
+for conv in conversations:
+    user_text = preprocess_text(conv["user"])
+    label = intents.index("other")
+    for i, intent in enumerate(intents):
+        if intent in conv["user"]:
+            label = i
+            break
+    training_data.append((user_text, label))
+
+# Create a simple TF model for intent recognition
+model = keras.Sequential([
+    keras.layers.Embedding(input_dim=len(training_data), output_dim=128),
+    keras.layers.LSTM(128),
+    keras.layers.Dense(len(intents), activation="softmax")
+])
+model.compile(loss="sparse_categorical_crossentropy", optimizer="adam")
+model.fit(training_data, epochs=100)
+
+# User Interaction
+while True:
+    user_input = input("You: ")
+    user_input = preprocess_text(user_input)
+    predicted_label = model.predict([user_input])
+    intent = intents[tf.argmax(predicted_label, axis=-1).numpy()[0]]
+    for conv in conversations:
+        if intent in conv["user"]:
+            bot_response = conv["bot"]
+            break
+    print(f"Bot: {bot_response}")
