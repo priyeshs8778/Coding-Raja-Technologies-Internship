@@ -1,31 +1,43 @@
-import tensorflow as tf
-from object_detection.utils import config_util
-from object_detection.builders import model_builder
-from object_detection.builders import dataset_builder
-from object_detection.utils import visualization_utils as viz_utils
-from object_detection.utils import config_util
-
-# Load model configuration and checkpoint
-configs = config_util.get_configs_from_pipeline_file("path/to/pipeline.config")
-model_config = configs['model']
-model = model_builder.build(model_config=model_config, is_training=False)
-
-# Load checkpoint
-ckpt = tf.compat.v2.train.Checkpoint(model=model)
-ckpt.restore("path/to/checkpoint").expect_partial()
-
-
 import cv2
+import torch
+import torchvision.transforms as T
+from torchvision.models.detection import fasterrcnn_resnet50_fpn
 
-cap = cv2.VideoCapture("path/to/video.mp4")
+# Load a pre-trained Faster R-CNN model
+model = fasterrcnn_resnet50_fpn(pretrained=True)
+model.eval()
+
+# Initialize the video capture
+cap = cv2.VideoCapture("your_video_stream.mp4")
+
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
-    
-    # Perform object detection on the frame
-    # Use the trained model to detect objects in the frame
 
-    # Visualize the detected objects
-    # Draw bounding boxes around the detected objects
-    # Display the frame
+    # Convert the frame to a PyTorch tensor
+    transform = T.Compose([T.ToTensor()])
+    input_image = transform(frame)
+
+    # Perform object detection
+    with torch.no_grad():
+        prediction = model([input_image])
+
+    # Display detected objects and tracking
+    # You can use SORT or other tracking algorithms here.
+
+    # Draw bounding boxes and labels on the frame
+    for score, label, box in zip(prediction[0]['scores'], prediction[0]['labels'], prediction[0]['boxes']):
+        if score > 0.7:  # Set a threshold for detection confidence
+            x, y, w, h = map(int, box)
+            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv2.putText(frame, f'Class: {label}', (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+
+    cv2.imshow("Object Detection", frame)
+
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
+
+cap.release()
+cv2.destroyAllWindows()
+
